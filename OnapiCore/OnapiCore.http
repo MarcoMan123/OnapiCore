@@ -1,0 +1,17 @@
+@OnapiCore_HostAddress = http://localhost:5244
+
+GET {{OnapiCore_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
+POST {{OnapiCore_HostAddress}}/api/Solicitudes/
+Content-Type: application/json
+
+{
+  "solicitanteId": 1,
+  "tipoId": 1,
+  "estadoId": 1,
+  "nombreProducto": "Marca de prueba",
+  "descripcion": "Test",
+  "fechaSolicitud": "2026-07-05"
+}
