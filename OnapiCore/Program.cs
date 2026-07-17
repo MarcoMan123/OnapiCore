@@ -41,6 +41,23 @@ namespace OnapiCore
                     await context.Response.WriteAsJsonAsync(new { mensaje = "Ocurrió un error interno", detalle = error?.Message });
                 });
             });
+            app.Use(async (context, next) =>
+            {
+                await next(); // deja que la petición siga su camino normal primero
+
+                using var scope = app.Services.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<OnapiCoreContext>();
+
+                db.Auditorias.Add(new OnapiCore.Models.Auditoria
+                {
+                    Metodo = context.Request.Method,
+                    Ruta = context.Request.Path,
+                    CodigoRespuesta = context.Response.StatusCode,
+                    Fecha = DateTime.Now
+                });
+
+                await db.SaveChangesAsync();
+            });
             app.UseCors("PermitirTodo");
             // Configure the HTTP request pipeline.
 
