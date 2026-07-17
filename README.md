@@ -57,7 +57,34 @@ CREATE TABLE Solicitudes (
     Descripcion NVARCHAR(MAX),
     FechaSolicitud DATETIME NOT NULL DEFAULT GETDATE()
 );
+
+CREATE TABLE Roles (
+    RolId INT IDENTITY(1,1) PRIMARY KEY,
+    Nombre NVARCHAR(50) NOT NULL -- Consulta, Mantenimiento, Administracion
+);
+
+CREATE TABLE Usuarios (
+    UsuarioId INT IDENTITY(1,1) PRIMARY KEY,
+    NombreUsuario NVARCHAR(50) NOT NULL UNIQUE,
+    ClaveHash NVARCHAR(200) NOT NULL,
+    RolId INT NOT NULL FOREIGN KEY REFERENCES Roles(RolId),
+    FechaCreacion DATETIME NOT NULL DEFAULT GETDATE()
+);
+
+CREATE TABLE Auditoria (
+    AuditoriaId INT IDENTITY(1,1) PRIMARY KEY,
+    Metodo NVARCHAR(10) NOT NULL,
+    Ruta NVARCHAR(300) NOT NULL,
+    CodigoRespuesta INT NOT NULL,
+    Fecha DATETIME NOT NULL DEFAULT GETDATE()
+);
+
+-- Solicitante anónimo, para trámites sin identificar al solicitante formal
+INSERT INTO Solicitantes (Nombre, Cedula, Email, Telefono)
+VALUES ('Anónimo', '000000000', NULL, NULL);
 ```
+
+Después de correr el script, confirma con `SELECT * FROM Solicitantes;` qué `SolicitanteId` le quedó al registro "Anónimo" (normalmente el 2, si es la primera solicitante que insertas después del anónimo).
 
 ## Endpoints disponibles
 
@@ -76,6 +103,39 @@ Base local: `http://localhost:5244/api` (o el puerto que te asigne tu Visual Stu
 | TiposDeRegistro | POST | `/TiposDeRegistro` | Crea uno nuevo |
 | Estados | GET | `/Estados` | Lista todos |
 | Estados | POST | `/Estados` | Crea uno nuevo |
+| Usuarios | GET | `/Usuarios` | Lista todos (sin exponer la clave) |
+| Usuarios | POST | `/Usuarios` | Crea uno nuevo |
+| Usuarios | PUT | `/Usuarios/{id}` | Edita nombre, rol y/o clave |
+| Usuarios | DELETE | `/Usuarios/{id}` | Borra uno |
+| Usuarios | POST | `/Usuarios/login` | Valida usuario y clave |
+| Roles | GET | `/Roles` | Lista todos |
+| Roles | GET | `/Roles/{id}` | Trae uno por id |
+| Roles | POST | `/Roles` | Crea uno nuevo |
+| Roles | PUT | `/Roles/{id}` | Reemplaza uno existente |
+| Roles | DELETE | `/Roles/{id}` | Borra uno |
+
+Ejemplo de body para crear un Usuario (POST) o editarlo (PUT):
+
+```json
+{
+  "nombreUsuario": "jperez",
+  "clave": "unaClaveSegura123",
+  "rolId": 1
+}
+```
+
+Ejemplo de body para login (POST a `/Usuarios/login`):
+
+```json
+{
+  "nombreUsuario": "jperez",
+  "clave": "unaClaveSegura123"
+}
+```
+
+Nota: la clave nunca se guarda ni se devuelve en texto plano — se guarda como hash (con BCrypt), y el GET de usuarios jamás incluye ese hash en la respuesta.
+
+El **solicitante anónimo** ya viene pre-cargado en la base con el script de arriba, para trámites donde no se identifica formalmente a quien solicita. Usa su `SolicitanteId` cuando necesites representar a alguien no identificado.
 
 Ejemplo de body para crear una Solicitud (POST):
 
@@ -95,6 +155,8 @@ Nota: `solicitanteId`, `tipoId` y `estadoId` tienen que existir ya en sus tablas
 CORS está abierto a cualquier origen, así que no importa en qué puerto corran su parte, van a poder llamar a esta API sin bloqueos del navegador.
 
 Los errores no manejados devuelven un JSON con `mensaje` y `detalle` en vez del stack trace completo.
+
+Toda petición que llega (sin importar el endpoint) queda registrada en la tabla `Auditoria`, con método, ruta, código de respuesta y fecha — para fines de auditoría.
 
 ---
 
